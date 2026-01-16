@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ArhDzagi Market</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #090613;
+            --card-dark: #120e22;
+            --accent: #a855f7;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        .item-card {
+            background: var(--card-dark);
+            border-radius: 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        /* Тулбар снизу */
+        .glass-nav {
+            background: rgba(9, 6, 19, 0.8);
+            backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        #product-modal {
+            transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+            background: #110c26;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-open { transform: translateY(0) !important; }
+
+        /* Компактные кнопки вкуса */
+        .flavor-chip {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            border-radius: 12px;
+            padding: 5px;
+        }
+
+        .flavor-img-wrapper {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .flavor-chip img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .flavor-chip.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: scale(0.95);
+        }
+
+        .flavor-chip.active span { color: white; }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
+        }
+
+        .animate-fade { animation: fadeIn 0.4s ease forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="pb-24">
+
+    <header class="flex justify-between items-center px-6 py-6 sticky top-0 z-40 bg-[#090613]/80 backdrop-blur-lg">
+        <div>
+            <h1 class="text-xl font-bold tracking-tight">ArhDzagi</h1>
+            <p class="text-[10px] text-purple-400 font-medium uppercase tracking-[0.2em]">Premium Store</p>
+        </div>
+    </header>
+
+    <main class="px-4">
+        <section id="section-catalog" class="animate-fade">
+            <div id="catalog-grid" class="grid grid-cols-2 gap-4"></div>
+        </section>
+
+        <section id="section-favorites" class="hidden py-20 text-center animate-fade text-gray-500">Избранное пусто</section>
+        <section id="section-cart" class="hidden py-20 text-center animate-fade text-gray-500">Корзина пуста</section>
+    </main>
+
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-[60] hidden opacity-0 transition-opacity duration-300" onclick="closeModal()"></div>
+
+    <div id="product-modal" class="fixed inset-x-0 bottom-0 z-[70] rounded-t-[40px] h-[85vh] translate-y-full flex flex-col">
+        <div class="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 shrink-0"></div>
+        <div id="modal-content" class="flex-1 overflow-y-auto px-6 pb-10"></div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 right-0 h-20 glass-nav z-50 flex justify-around items-center px-4 pb-4">
+        <button onclick="showSection('catalog')" class="nav-btn flex flex-col items-center text-purple-500" data-id="catalog">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <span class="text-[10px] mt-1 font-semibold uppercase tracking-wider">Магазин</span>
+        </button>
+        <button onclick="showSection('favorites')" class="nav-btn flex flex-col items-center text-gray-500" data-id="favorites">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-width="2"/></svg>
+            <span class="text-[10px] mt-1 font-semibold uppercase tracking-wider">Избранное</span>
+        </button>
+        <button onclick="showSection('cart')" class="nav-btn flex flex-col items-center text-gray-500" data-id="cart">
+            <div class="relative">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-width="2"/></svg>
+                <span id="cart-count" class="absolute -top-1 -right-2 bg-white text-black text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold">0</span>
+            </div>
+            <span class="text-[10px] mt-1 font-semibold uppercase tracking-wider">Заказ</span>
+        </button>
+    </nav>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        let allItems = [];
+        let selectedFlavor = null;
+        let cartCount = 0;
+
+        // Переключение секций
+        function showSection(id) {
+            document.querySelectorAll('main section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`section-${id}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.replace('text-purple-500', 'text-gray-500');
+                if(btn.dataset.id === id) btn.classList.replace('text-gray-500', 'text-purple-500');
+            });
+        }
+
+        async function loadApp() {
+            try {
+                const res = await fetch(`${API_URL}/get_items`);
+                allItems = await res.json();
+                renderCatalog();
+            } catch (e) { console.error(e); }
+        }
+
+        function renderCatalog() {
+            const grid = document.getElementById('catalog-grid');
+            grid.innerHTML = allItems.map(item => `
+                <div class="item-card p-2" onclick="openProduct(${item.id})">
+                    <div class="aspect-square rounded-[18px] overflow-hidden mb-3 bg-white/5">
+                        <img src="${API_URL}/static/${item.photo}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="px-1">
+                        <h3 class="text-[11px] text-white/50 truncate">${item.name}</h3>
+                        <p class="font-bold">${item.price} ₽</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openProduct(id) {
+            const item = allItems.find(i => i.id === id);
+            selectedFlavor = null;
+
+            document.getElementById('modal-content').innerHTML = `
+                <div class="flex flex-col animate-fade">
+                    <div class="aspect-square rounded-[32px] overflow-hidden my-4 bg-white/5">
+                        <img src="${API_URL}/static/${item.photo}" class="w-full h-full object-cover">
+                    </div>
+
+                    <h2 class="text-2xl font-bold">${item.name}</h2>
+                    <p class="text-3xl font-black mb-4">${item.price} ₽</p>
+                    <p class="text-white/40 text-sm mb-6">${item.description}</p>
+
+                    <div class="mb-8">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-4">Выберите вкус</p>
+                        <div class="grid grid-cols-4 gap-2">
+                            ${item.flavors.map(f => `
+                                <button onclick="selectFlavor(this, '${f.name}')" class="flavor-chip">
+                                    <div class="flavor-img-wrapper">
+                                        <img src="${API_URL}/static/${f.photo}" alt="${f.name}">
+                                    </div>
+                                    <span class="text-[8px] leading-tight font-bold uppercase text-white/70 truncate w-full text-center">
+                                        ${f.name}
+                                    </span>
+                                </button>
+                            `).join('') || '<p class="text-white/20">Один вкус</p>'}
+                        </div>
+                    </div>
+
+                    <button onclick="addToCart()" class="btn-primary w-full py-5 rounded-2xl font-bold text-xs uppercase tracking-widest active:scale-95 transition-transform">
+                        В корзину
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('modal-overlay').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('modal-overlay').style.opacity = '1';
+                document.getElementById('product-modal').classList.add('modal-open');
+            }, 10);
+        }
+
+        function selectFlavor(btn, name) {
+            const isActive = btn.classList.contains('active');
+            document.querySelectorAll('.flavor-chip').forEach(b => b.classList.remove('active'));
+
+            if (isActive) {
+                selectedFlavor = null;
+            } else {
+                btn.classList.add('active');
+                selectedFlavor = name;
+            }
+        }
+
+        function addToCart() {
+            cartCount++;
+            document.getElementById('cart-count').innerText = cartCount;
+            closeModal();
+        }
+
+        function closeModal() {
+            document.getElementById('product-modal').classList.remove('modal-open');
+            document.getElementById('modal-overlay').style.opacity = '0';
+            setTimeout(() => document.getElementById('modal-overlay').classList.add('hidden'), 300);
+        }
+
+        window.onload = loadApp;
+    </script>
+</body>
+</html>
