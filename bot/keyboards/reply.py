@@ -25,6 +25,15 @@ BTN_ADD_FLAVOR = "🍬 Добавить вкус"
 BTN_FLAVORS_DONE = "✅ Готово"
 BTN_FLAVORS_BACK = "◀️ Назад"
 
+# Управление категориями
+BTN_CATEGORY_ADD = "➕ Добавить категорию"
+BTN_CATEGORY_DELETE = "🗑 Удалить категорию"
+BTN_CATEGORY_EDIT = "✏️ Редактировать категорию"
+BTN_BACK_TO_ADMIN_FROM_CATEGORIES = "◀️ В главное меню"
+# Редактирование категории — что изменить
+BTN_CATEGORY_EDIT_NAME = "📝 Название"
+BTN_CATEGORY_EDIT_IMAGE = "🖼 Картинка"
+
 
 def get_admin_main_keyboard() -> ReplyKeyboardMarkup:
     """Главное меню для администратора."""
@@ -67,6 +76,21 @@ def get_manage_products_keyboard() -> ReplyKeyboardMarkup:
                 KeyboardButton(text=BTN_PRODUCT_EDIT),
             ],
             [KeyboardButton(text=BTN_BACK_TO_ADMIN)],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def get_manage_categories_keyboard() -> ReplyKeyboardMarkup:
+    """Клавиатура подменю «Управление категориями»."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text=BTN_CATEGORY_ADD),
+                KeyboardButton(text=BTN_CATEGORY_DELETE),
+                KeyboardButton(text=BTN_CATEGORY_EDIT),
+            ],
+            [KeyboardButton(text=BTN_BACK_TO_ADMIN_FROM_CATEGORIES)],
         ],
         resize_keyboard=True,
     )

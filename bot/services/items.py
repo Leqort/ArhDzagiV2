@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from config import UPLOAD_DIR
+from models.category import Category
 from models.flavor import Flavor
 from models.items import Item
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,16 +18,20 @@ class ItemService:
         self.session = session
 
     async def get_item(self, item_id: int) -> Item | None:
-        """Товар по ID с подгрузкой вкусов."""
+        """Товар по ID с подгрузкой вкусов и категории."""
         result = await self.session.execute(
-            select(Item).where(Item.id == item_id).options(selectinload(Item.flavors))
+            select(Item)
+            .where(Item.id == item_id)
+            .options(selectinload(Item.flavors), selectinload(Item.category))
         )
         return result.scalar_one_or_none()
 
     async def get_items(self) -> list[Item]:
-        """Список всех товаров с вкусами."""
+        """Список всех товаров с вкусами и категорией."""
         result = await self.session.execute(
-            select(Item).options(selectinload(Item.flavors)).order_by(Item.id)
+            select(Item)
+            .options(selectinload(Item.flavors), selectinload(Item.category))
+            .order_by(Item.id)
         )
         return list(result.scalars().unique().all())
 
@@ -44,16 +49,22 @@ class ItemService:
         )
         return list(result.scalars().all())
 
+    async def get_categories(self) -> list[Category]:
+        """Список всех категорий."""
+        result = await self.session.execute(select(Category).order_by(Category.name))
+        return list(result.scalars().all())
+
     async def create_item(
         self,
         name: str,
         description: str,
         price: float,
         photo_filename: str,
+        category_id: int,
         discount: float | None = None,
         flavor_ids: list[int] | None = None,
     ) -> Item:
-        """Создать товар. photo_filename — имя файла в UPLOAD_DIR."""
+        """Создать товар. category_id обязателен. photo_filename — имя файла в UPLOAD_DIR."""
         selected_flavors: list[Flavor] = []
         if flavor_ids:
             result = await self.session.execute(select(Flavor).where(Flavor.id.in_(flavor_ids)))
@@ -63,6 +74,7 @@ class ItemService:
             description=description,
             price=price,
             discount=discount,
+            category_id=category_id,
             photo=photo_filename,
             flavors=selected_flavors,
         )
@@ -99,6 +111,18 @@ class ItemService:
         if not item:
             return False
         item.description = description
+        await self.session.commit()
+        return True
+
+    async def update_category(self, item_id: int, category_id: int) -> bool:
+        """Обновить категорию товара."""
+        item = await self.get_item(item_id)
+        if not item:
+            return False
+        category = await self.session.get(Category, category_id)
+        if not category:
+            return False
+        item.category_id = category_id
         await self.session.commit()
         return True
 

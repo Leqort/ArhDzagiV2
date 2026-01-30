@@ -13,7 +13,8 @@ from config import setup_logging
 setup_logging()
 
 from database.db import Base, engine
-from routes import items, flavors
+import models.category  # noqa: F401 — регистрация модели для create_all
+from routes import items, flavors, categories
 
 from bot.bot import create_bot_and_dispatcher, run_polling
 from bot.config import BotConfig
@@ -67,6 +68,7 @@ app.add_middleware(
 # routes
 app.include_router(items.router)
 app.include_router(flavors.router)
+app.include_router(categories.router)
 
 
 if __name__ == "__main__":

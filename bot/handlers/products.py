@@ -30,6 +30,7 @@ from bot.keyboards.inline import (
     inline_edit_flavor_keyboard,
     inline_flavors_keyboard_add,
     inline_flavors_keyboard_edit,
+    inline_select_category_keyboard,
     CBD_PRODUCT_DELETE_CANCEL,
     CBD_PRODUCT_DELETE_CONFIRM_PREFIX,
     CBD_PRODUCT_EDIT_CANCEL,
@@ -40,6 +41,7 @@ from bot.keyboards.inline import (
     CBD_EDIT_DESCRIPTION,
     CBD_EDIT_IMAGE,
     CBD_EDIT_FLAVORS,
+    CBD_EDIT_CATEGORY,
     CBD_FLAVOR_EDIT_NAME_PREFIX,
     CBD_FLAVOR_EDIT_PHOTO_PREFIX,
     CBD_FLAVOR_EDIT_BACK,
@@ -49,6 +51,7 @@ from bot.keyboards.inline import (
     CBD_PRODUCT_EDIT_FLAVOR_PREFIX,
     CBD_EDIT_FLAVOR_ADD_PREFIX,
     CBD_PRODUCT_EDIT_FLAVORS_BACK,
+    CBD_PRODUCT_SELECT_CATEGORY_PREFIX,
 )
 from bot.filters import AdminFilter
 from bot.services.items import ItemService
@@ -61,6 +64,7 @@ class ProductEditStates(StatesGroup):
     waiting_product_id = State()
     choosing_field = State()
     choosing_flavor = State()  # список вкусов товара + кнопки
+    waiting_category_select = State()  # выбор категории при редактировании
     waiting_name = State()
     waiting_description = State()
     waiting_image = State()
@@ -73,6 +77,7 @@ class ProductEditStates(StatesGroup):
 
 class ProductAddStates(StatesGroup):
     """Состояния FSM при добавлении товара."""
+    waiting_category = State()  # выбор категории (обязательно)
     waiting_name = State()
     waiting_description = State()
     waiting_price = State()
@@ -204,7 +209,12 @@ def setup(router_instance: Router, config: BotConfig) -> None:
     )
     router_instance.callback_query.register(
         handle_product_edit_field_callback,
-        F.data.in_({CBD_EDIT_NAME, CBD_EDIT_DESCRIPTION, CBD_EDIT_IMAGE, CBD_EDIT_FLAVORS}),
+        F.data.in_({CBD_EDIT_NAME, CBD_EDIT_DESCRIPTION, CBD_EDIT_IMAGE, CBD_EDIT_FLAVORS, CBD_EDIT_CATEGORY}),
+        admin_filter,
+    )
+    router_instance.callback_query.register(
+        handle_product_select_category,
+        F.data.startswith(CBD_PRODUCT_SELECT_CATEGORY_PREFIX),
         admin_filter,
     )
     # Callback: редактирование вкуса (название, фото, назад)
@@ -334,6 +344,50 @@ async def handle_product_edit_field_callback(
             f"Вкусы товара: {names}. Выберите вкус для редактирования или нажмите «Добавить вкус».",
             reply_markup=inline_flavors_keyboard_edit(item.flavors, product_id),
         )
+    elif data == CBD_EDIT_CATEGORY:
+        await state.set_state(ProductEditStates.waiting_category_select)
+        service = ItemService(session)
+        categories = await service.get_categories()
+        if not categories:
+            await callback.message.answer("Нет категорий. Создайте категорию в разделе «Управление категориями».")
+            await state.set_state(ProductEditStates.choosing_field)
+            return
+        await callback.message.answer(
+            "Выберите новую категорию для товара:",
+            reply_markup=inline_select_category_keyboard(categories),
+        )
+
+
+async def handle_product_select_category(
+    callback: CallbackQuery, state: FSMContext, session: AsyncSession
+) -> None:
+    """Выбор категории при добавлении товара или при редактировании (смена категории)."""
+    try:
+        await callback.answer()
+    except TelegramBadRequest:
+        pass
+    category_id = int(callback.data.removeprefix(CBD_PRODUCT_SELECT_CATEGORY_PREFIX))
+    current_state = await state.get_state()
+    if current_state == ProductAddStates.waiting_category.state:
+        await state.update_data(category_id=category_id)
+        await state.set_state(ProductAddStates.waiting_name)
+        await callback.message.answer("Введите название товара:")
+    elif current_state == ProductEditStates.waiting_category_select.state:
+        data = await state.get_data()
+        product_id = data.get("product_id")
+        if not product_id:
+            await callback.message.answer("Ошибка: товар не выбран.")
+            return
+        service = ItemService(session)
+        ok = await service.update_category(product_id, category_id)
+        await state.set_state(ProductEditStates.choosing_field)
+        if ok:
+            await callback.message.answer(
+                "Категория товара изменена. Что ещё изменить? (по одному полю)",
+                reply_markup=inline_edit_product_fields_keyboard(),
+            )
+        else:
+            await callback.message.answer("Товар или категория не найдены.")
 
 
 # --- Назад к подменю товаров ---
@@ -351,11 +405,24 @@ async def handle_back_to_manage_products(message: Message, state: FSMContext) ->
 # --- Добавление товара ---
 
 
-async def handle_product_add(message: Message, state: FSMContext) -> None:
-    """Старт добавления товара: запрос названия."""
-    await state.set_state(ProductAddStates.waiting_name)
+async def handle_product_add(
+    message: Message, state: FSMContext, session: AsyncSession
+) -> None:
+    """Старт добавления товара: сначала выбор категории (обязательно)."""
     await state.set_data({})
-    await message.answer("Введите название товара:")
+    service = ItemService(session)
+    categories = await service.get_categories()
+    if not categories:
+        await message.answer(
+            "Нельзя добавить товар без категории. Сначала создайте категорию в разделе «Управление категориями».",
+            reply_markup=get_manage_products_keyboard(),
+        )
+        return
+    await state.set_state(ProductAddStates.waiting_category)
+    await message.answer(
+        "Выберите категорию для товара (обязательно):",
+        reply_markup=inline_select_category_keyboard(categories),
+    )
 
 
 async def handle_add_name(message: Message, state: FSMContext) -> None:
@@ -462,6 +529,10 @@ async def handle_add_flavor_done_callback(
     except TelegramBadRequest:
         pass
     data = await state.get_data()
+    category_id = data.get("category_id")
+    if not category_id:
+        await callback.message.answer("Ошибка: категория не выбрана.")
+        return
     selected_ids: list[int] = list(data.get("selected_flavor_ids") or [])
     name = data["name"]
     description = data["description"]
@@ -474,6 +545,7 @@ async def handle_add_flavor_done_callback(
             description=description,
             price=price,
             photo_filename=photo_filename,
+            category_id=category_id,
             flavor_ids=selected_ids if selected_ids else None,
         )
         await state.clear()

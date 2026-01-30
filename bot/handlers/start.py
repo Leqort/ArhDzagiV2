@@ -8,6 +8,7 @@ from bot.keyboards.reply import (
     get_admin_main_keyboard,
     get_courier_main_keyboard,
     get_manage_products_keyboard,
+    get_manage_categories_keyboard,
     BTN_ADMIN_PRODUCTS,
     BTN_ADMIN_CATEGORIES,
 )
@@ -36,7 +37,7 @@ def setup(router_instance: Router, config: BotConfig) -> None:
         handle_manage_products, F.text == BTN_ADMIN_PRODUCTS, admin_filter
     )
     router_instance.message.register(
-        stub_manage_categories, F.text == BTN_ADMIN_CATEGORIES, admin_filter
+        handle_manage_categories, F.text == BTN_ADMIN_CATEGORIES, admin_filter
     )
 
 
@@ -67,6 +68,9 @@ async def handle_manage_products(message: Message) -> None:
     )
 
 
-async def stub_manage_categories(message: Message) -> None:
-    """Управление категориями (заглушка)."""
-    await message.answer("Раздел «Управление категориями» в разработке.")
+async def handle_manage_categories(message: Message) -> None:
+    """Подменю «Управление категориями»: добавить / удалить / редактировать."""
+    await message.answer(
+        "Выберите действие:",
+        reply_markup=get_manage_categories_keyboard(),
+    )
