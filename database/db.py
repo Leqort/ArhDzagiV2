@@ -1,3 +1,4 @@
+import os
 from typing import Annotated
 
 from fastapi import Depends
@@ -13,7 +14,9 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.close()
 
 
-engine = create_async_engine("sqlite+aiosqlite:///mydb.db", echo=True)
+# echo=True выводит все SQL-запросы; отключается через SQLALCHEMY_ECHO=0 или false
+_sql_echo = os.getenv("SQLALCHEMY_ECHO", "0").lower() in ("1", "true", "yes")
+engine = create_async_engine("sqlite+aiosqlite:///mydb.db", echo=_sql_echo)
 
 
 new_async_session = async_sessionmaker(engine, expire_on_commit=False)

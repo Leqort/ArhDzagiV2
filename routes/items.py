@@ -82,6 +82,18 @@ async def get_items(session: SessionDep):
     return items
 
 
+@router.get("/items/{item_id}/flavors")
+async def get_item_flavors(item_id: int, session: SessionDep):
+    stmt = select(Item).where(Item.id == item_id).options(selectinload(Item.flavors))
+    result = await session.execute(stmt)
+    item = result.scalar_one_or_none()
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+
+    return item.flavors
+
+
 @router.delete("/items/{item_id}")
 async def delete_item(item_id: int, session: SessionDep):
 
