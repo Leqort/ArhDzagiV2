@@ -82,6 +82,37 @@
             background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
         }
 
+        .category-chip {
+            background: var(--card-dark);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+            min-width: 56px;
+        }
+        .category-chip:hover { color: #fff; border-color: rgba(255, 255, 255, 0.15); }
+        .category-chip-active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        .category-chip-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.3);
+            margin-bottom: 4px;
+        }
+        .category-chip-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         .animate-fade { animation: fadeIn 0.4s ease forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -97,6 +128,9 @@
 
     <main class="px-4">
         <section id="section-catalog" class="animate-fade">
+            <div id="categories-bar" class="flex gap-2 overflow-x-auto pb-4 -mx-1 scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <!-- категории подставляются через JS -->
+            </div>
             <div id="catalog-grid" class="grid grid-cols-2 gap-4"></div>
         </section>
 
@@ -132,6 +166,8 @@
     <script>
         const API_URL = "http://127.0.0.1:8000";
         let allItems = [];
+        let categories = [];
+        let currentCategoryId = null; // null = все категории
         let selectedFlavor = null;
         let cartCount = 0;
 
@@ -147,14 +183,48 @@
 
         async function loadApp() {
             try {
-                const res = await fetch(`${API_URL}/get_items`);
+                const [catRes, itemsRes] = await Promise.all([
+                    fetch(`${API_URL}/get_categories`),
+                    fetch(`${API_URL}/get_items`)
+                ]);
+                categories = await catRes.json();
+                allItems = await itemsRes.json();
+                renderCategories();
+                renderCatalog();
+            } catch (e) { console.error(e); }
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('categories-bar');
+            if (!container) return;
+            container.innerHTML = categories.map(c => `
+                <button type="button" onclick="toggleCategory(${c.id})" class="category-chip rounded-2xl p-2 text-xs font-semibold text-center ${currentCategoryId === c.id ? 'category-chip-active' : ''}" data-category-id="${c.id}">
+                    <div class="category-chip-img">
+                        <img src="${API_URL}/static/${c.photo}" alt="${c.name}">
+                    </div>
+                    <span class="truncate w-full block">${c.name}</span>
+                </button>
+            `).join('');
+        }
+
+        async function toggleCategory(categoryId) {
+            const wasSelected = currentCategoryId === categoryId;
+            currentCategoryId = wasSelected ? null : categoryId;
+            try {
+                const url = currentCategoryId === null ? `${API_URL}/get_items` : `${API_URL}/get_items?category_id=${currentCategoryId}`;
+                const res = await fetch(url);
                 allItems = await res.json();
+                renderCategories();
                 renderCatalog();
             } catch (e) { console.error(e); }
         }
 
         function renderCatalog() {
             const grid = document.getElementById('catalog-grid');
+            if (allItems.length === 0) {
+                grid.innerHTML = '<p class="col-span-2 text-center text-white/40 py-12 text-sm">В этой категории пока нет товаров</p>';
+                return;
+            }
             grid.innerHTML = allItems.map(item => `
                 <div class="item-card p-2" onclick="openProduct(${item.id})">
                     <div class="aspect-square rounded-[18px] overflow-hidden mb-3 bg-white/5">
@@ -231,7 +301,7 @@
 
         function closeModal() {
             document.getElementById('product-modal').classList.remove('modal-open');
-            document.getElementById('modal-overlay').style.opacity = '0';♠
+            document.getElementById('modal-overlay').style.opacity = '0';
             setTimeout(() => document.getElementById('modal-overlay').classList.add('hidden'), 300);
         }
 

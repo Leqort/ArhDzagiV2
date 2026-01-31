@@ -2,10 +2,12 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from starlette.staticfiles import StaticFiles
 
 from config import setup_logging
@@ -69,6 +71,15 @@ app.add_middleware(
 app.include_router(items.router)
 app.include_router(flavors.router)
 app.include_router(categories.router)
+
+
+@app.get("/", response_class=FileResponse)
+async def serve_index():
+    """Отдаёт главную страницу магазина (index.html)."""
+    path = Path(__file__).parent / "index.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="index.html not found")
+    return FileResponse(path, media_type="text/html")
 
 
 if __name__ == "__main__":

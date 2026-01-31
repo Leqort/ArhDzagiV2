@@ -78,11 +78,13 @@ async def create_item(
 
 
 @router.get("/get_items")
-async def get_items(session: SessionDep):
+async def get_items(session: SessionDep, category_id: int | None = None):
     query = select(Item).options(
         selectinload(Item.flavors),
         selectinload(Item.category),
     )
+    if category_id is not None:
+        query = query.where(Item.category_id == category_id)
     result = await session.execute(query)
     return list(result.scalars().unique().all())
 
