@@ -1,5 +1,5 @@
 """Reply-клавиатуры."""
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
 
 # Тексты кнопок для админов
@@ -33,6 +33,21 @@ BTN_BACK_TO_ADMIN_FROM_CATEGORIES = "◀️ В главное меню"
 # Редактирование категории — что изменить
 BTN_CATEGORY_EDIT_NAME = "📝 Название"
 BTN_CATEGORY_EDIT_IMAGE = "🖼 Картинка"
+
+# Mini App для обычных пользователей
+BTN_OPEN_SHOP = "🛒 Открыть магазин"
+
+
+def get_user_main_keyboard(webapp_url: str) -> ReplyKeyboardMarkup | None:
+    """Клавиатура для обычного пользователя: кнопка «Открыть магазин» (Mini App). Если webapp_url пустой — None."""
+    if not webapp_url:
+        return None
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=BTN_OPEN_SHOP, web_app=WebAppInfo(url=webapp_url))],
+        ],
+        resize_keyboard=True,
+    )
 
 
 def get_admin_main_keyboard() -> ReplyKeyboardMarkup:

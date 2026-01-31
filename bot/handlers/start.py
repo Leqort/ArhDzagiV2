@@ -7,6 +7,7 @@ from bot.config import BotConfig
 from bot.keyboards.reply import (
     get_admin_main_keyboard,
     get_courier_main_keyboard,
+    get_user_main_keyboard,
     get_manage_products_keyboard,
     get_manage_categories_keyboard,
     BTN_ADMIN_PRODUCTS,
@@ -57,7 +58,11 @@ async def cmd_start(message: Message, config: BotConfig) -> None:
             reply_markup=get_courier_main_keyboard(),
         )
     else:
-        await message.answer(WELCOME_USER)
+        reply_markup = get_user_main_keyboard(config.webapp_url)
+        await message.answer(
+            WELCOME_USER,
+            reply_markup=reply_markup,
+        )
 
 
 async def handle_manage_products(message: Message) -> None:

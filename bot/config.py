@@ -10,6 +10,7 @@ class BotConfig:
     token: str
     admin_ids: tuple[int, ...] = ()
     courier_ids: tuple[int, ...] = ()
+    webapp_url: str = ""  # URL Mini App (index.html), для кнопки «Открыть магазин»
 
     @classmethod
     def from_env(cls) -> "BotConfig":
@@ -18,4 +19,5 @@ class BotConfig:
         admin_ids = tuple(int(x.strip()) for x in admin_str.split(",") if x.strip())
         courier_str = os.getenv("TELEGRAM_COURIERS_IDS", "")
         courier_ids = tuple(int(x.strip()) for x in courier_str.split(",") if x.strip())
-        return cls(token=token, admin_ids=admin_ids, courier_ids=courier_ids)
+        webapp_url = (os.getenv("WEBAPP_URL") or os.getenv("BASE_URL") or "").rstrip("/")
+        return cls(token=token, admin_ids=admin_ids, courier_ids=courier_ids, webapp_url=webapp_url)
